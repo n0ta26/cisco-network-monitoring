@@ -14,14 +14,11 @@ scrape_configs:
           device: cisco-router
           role: home-router
     relabel_configs:
-      # Prometheusのtargetをsnmp_exporterへ渡す
       - source_labels: [__address__]
         target_label: __param_target
 
-      # Grafana上で見やすいinstance名にする
       - source_labels: [__param_target]
         target_label: instance
 
-      # 実際のscrape先はsnmp_exporter
       - target_label: __address__
         replacement: snmp-exporter:9116
