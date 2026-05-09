@@ -1,0 +1,16 @@
+auths:
+  cisco_v3:
+    version: 3
+    username: monitor-user
+    security_level: authPriv
+    password: "AUTH_PASSWORD"
+    auth_protocol: SHA
+    priv_protocol: AES
+    priv_password: "PRIV_PASSWORD"
+
+modules:
+  cisco_if_mib:
+    walk:
+      - 1.3.6.1.2.1.1
+      - 1.3.6.1.2.1.2
+      - 1.3.6.1.2.1.31
