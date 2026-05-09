@@ -1,0 +1,6 @@
+---
+- name: Prepare Docker apt repository
+  ansible.builtin.import_tasks: repository.yml
+
+- name: Install and validate Docker runtime
+  ansible.builtin.import_tasks: install.yml

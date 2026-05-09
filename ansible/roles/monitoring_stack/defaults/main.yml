@@ -1,0 +1,6 @@
+---
+monitoring_stack_app_dir: /opt/network-monitoring
+monitoring_stack_source_dir: "{{ playbook_dir }}/../../files"
+monitoring_stack_docker_cli_path: /usr/bin/docker
+monitoring_stack_file_mode: "0644"
+monitoring_stack_dir_mode: "0755"
