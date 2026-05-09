@@ -11,9 +11,6 @@
     docker_cli_path: /usr/bin/docker
 
   tasks:
-    # 対象OSの情報を取得する
-    # ansible_distribution: Debian / Ubuntu など
-    # ansible_distribution_release: bookworm / jammy / noble など
     - name: Show target OS information
       ansible.builtin.debug:
         msg:
@@ -21,7 +18,6 @@
           - "release={{ ansible_distribution_release }}"
           - "architecture={{ ansible_architecture }}"
 
-    # Docker公式APTリポジトリに必要な前提パッケージを導入する
     - name: Install packages required for Docker repository
       ansible.builtin.apt:
         name:
@@ -31,43 +27,33 @@
         state: present
         update_cache: true
 
-    # DockerのGPGキー配置先ディレクトリを作成する
     - name: Create Docker apt keyrings directory
       ansible.builtin.file:
         path: /etc/apt/keyrings
         state: directory
         mode: "0755"
 
-    # 以前誤って作成したDockerリポジトリ設定を削除する
     - name: Remove old Docker apt source file
       ansible.builtin.file:
         path: /etc/apt/sources.list.d/docker.sources
         state: absent
 
-    # 古い形式で作成されている可能性のあるDockerリポジトリ設定も削除する
     - name: Remove old Docker apt list file
       ansible.builtin.file:
         path: /etc/apt/sources.list.d/docker.list
         state: absent
 
-    # Docker公式GPGキーを取得する
-    # DebianでもUbuntuでもパスは同じでよい
     - name: Download Docker official GPG key
       ansible.builtin.get_url:
         url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
         dest: /etc/apt/keyrings/docker.asc
         mode: "0644"
 
-    # dpkg上のCPUアーキテクチャを取得する
-    # 例: amd64, arm64
     - name: Get dpkg architecture
       ansible.builtin.command: dpkg --print-architecture
       register: dpkg_architecture
       changed_when: false
 
-    # Docker公式APTリポジトリをOS種別に応じて登録する
-    # Debianなら https://download.docker.com/linux/debian
-    # Ubuntuなら https://download.docker.com/linux/ubuntu
     - name: Add Docker apt repository
       ansible.builtin.copy:
         dest: /etc/apt/sources.list.d/docker.sources
@@ -80,12 +66,10 @@
           Architectures: {{ dpkg_architecture.stdout }}
           Signed-By: /etc/apt/keyrings/docker.asc
 
-    # APTキャッシュを更新する
     - name: Update apt cache after adding Docker repository
       ansible.builtin.apt:
         update_cache: true
 
-    # Docker Engine / Docker CLI / Compose plugin を導入する
     - name: Install Docker Engine and Docker Compose plugin
       ansible.builtin.apt:
         name:
@@ -96,40 +80,34 @@
           - docker-compose-plugin
         state: present
 
-    # Docker daemonを起動し、自動起動も有効化する
     - name: Ensure Docker service is enabled and running
       ansible.builtin.service:
         name: docker
         state: started
         enabled: true
 
-    # docker CLI が存在することを確認する
     - name: Check Docker CLI
       ansible.builtin.command: "{{ docker_cli_path }} --version"
       register: docker_cli_version
       changed_when: false
 
-    # Docker Compose v2 plugin が利用可能であることを確認する
     - name: Check Docker Compose plugin
       ansible.builtin.command: "{{ docker_cli_path }} compose version"
       register: docker_compose_version
       changed_when: false
 
-    # アプリケーション配置ディレクトリを作成する
     - name: Create application directory
       ansible.builtin.file:
         path: "{{ app_dir }}"
         state: directory
         mode: "0755"
 
-    # ComposeファイルやPrometheus/Grafana/snmp_exporter関連ファイルを配置する
     - name: Copy monitoring files
       ansible.builtin.copy:
         src: "../../files/"
         dest: "{{ app_dir }}/"
         mode: "0644"
 
-    # Docker Compose stackを起動する
     - name: Ensure docker compose stack is running
       community.docker.docker_compose_v2:
         project_src: "{{ app_dir }}"
