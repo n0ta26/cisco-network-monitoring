@@ -19,8 +19,6 @@ nix develop
 `flake.nix` から次のツールが利用できます。
 
 - `ansible`
-- `net-snmp`
-- `docker`（CLI）
 
 ## 事前設定
 
@@ -45,7 +43,7 @@ ansible-playbook -i ansible/inventory.yml ansible/playbooks/deploy-monitoring.ym
 
 ## 動作確認（任意）
 
-SNMP 設定確認例:
+`snmpwalk` を使った SNMP 設定確認例（`net-snmp` が別途インストール済みの場合）:
 
 ```bash
 snmpwalk -v3 \

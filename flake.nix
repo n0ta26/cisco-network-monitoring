@@ -13,8 +13,6 @@
       devShells.${system}.default = pkgs.mkShell {
         packages = [
           pkgs.ansible
-          pkgs.net-snmp
-          pkgs.docker
         ];
       };
     };
