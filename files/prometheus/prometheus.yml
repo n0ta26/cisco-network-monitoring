@@ -5,8 +5,8 @@ scrape_configs:
   - job_name: "cisco-router-snmp"
     metrics_path: /snmp
     params:
-      module: [if_mib]
       auth: [cisco_v3]
+      module: [if_mib]
     static_configs:
       - targets:
           - 172.16.2.1
