@@ -13,7 +13,12 @@
       devShells.${system}.default = pkgs.mkShell {
         packages = [
           pkgs.ansible
+          pkgs.ansible-lint
         ];
+
+        shellHook = ''
+          export ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg"
+        '';
       };
     };
 }
