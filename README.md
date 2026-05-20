@@ -19,6 +19,7 @@ nix develop
 `flake.nix` から次のツールが利用できます。
 
 - `ansible`
+- `ansible-lint`
 
 ## 事前設定
 
