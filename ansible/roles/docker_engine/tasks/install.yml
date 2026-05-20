@@ -1,7 +1,7 @@
 ---
 - name: Install Docker Engine and Docker Compose plugin
   ansible.builtin.apt:
-    name: "{{ docker_packages }}"
+    name: "{{ docker_engine_packages }}"
     state: present
 
 - name: Ensure Docker service is enabled and running

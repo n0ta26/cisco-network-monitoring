@@ -1,14 +1,14 @@
 ---
 - name: Install packages required for Docker apt repository
   ansible.builtin.apt:
-    name: "{{ docker_apt_prerequisites }}"
+    name: "{{ docker_engine_apt_prerequisites }}"
     state: present
     update_cache: true
 
 - name: Validate supported CPU architecture for Docker apt repository
   ansible.builtin.assert:
     that:
-      - docker_apt_arch is not none
+      - docker_engine_apt_arch is not none
     fail_msg: "Unsupported architecture for Docker apt repository: {{ ansible_architecture }}"
 
 - name: Ensure Docker apt keyrings directory exists
@@ -28,13 +28,13 @@
 - name: Download Docker official GPG key
   ansible.builtin.get_url:
     url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
-    dest: "{{ docker_apt_keyring_path }}"
+    dest: "{{ docker_engine_apt_keyring_path }}"
     mode: "0644"
 
 - name: Add Docker apt repository
   ansible.builtin.apt_repository:
     repo: >-
-      deb [arch={{ docker_apt_arch }} signed-by={{ docker_apt_keyring_path }}]
+      deb [arch={{ docker_engine_apt_arch }} signed-by={{ docker_engine_apt_keyring_path }}]
       https://download.docker.com/linux/{{ ansible_distribution | lower }}
       {{ ansible_distribution_release }} stable
     filename: docker
