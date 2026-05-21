@@ -13,6 +13,7 @@
       devShells.${system}.default = pkgs.mkShell {
         packages = [
           pkgs.ansible
+          pkgs.net-snmp
           pkgs.ansible-lint
         ];
 
