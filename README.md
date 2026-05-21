@@ -20,6 +20,7 @@ nix develop
 
 - `ansible`
 - `ansible-lint`
+- `snmpwalk`
 
 ## 事前設定
 
