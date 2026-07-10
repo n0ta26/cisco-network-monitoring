@@ -43,6 +43,17 @@ ansible-playbook -i ansible/inventory.yml ansible/playbooks/deploy-monitoring.ym
 - Prometheus: `http://<monitoring-host>:9090`
 - SNMP Exporter: `http://<monitoring-host>:9116`
 
+## Grafana ダッシュボード
+
+Grafana 13 の V2 Resource 形式で、次のダッシュボードをリポジトリ管理しています。
+
+- `Cisco Router - Overview`
+- `Cisco Router - Errors`
+
+ダッシュボード JSON は `files/grafana/dashboards` に配置され、デプロイ時に Grafana へ
+自動プロビジョニングされます。Grafana 上での編集は許可していますが、変更内容は
+リポジトリへ自動反映されないため、サーバ上で編集した場合は JSON を再取得してください。
+
 ## 動作確認（任意）
 
 `snmpwalk` を使った SNMP 設定確認例（`net-snmp` が別途インストール済みの場合）:
