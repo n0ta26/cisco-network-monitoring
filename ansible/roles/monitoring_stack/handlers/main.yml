@@ -1,0 +1,6 @@
+---
+- name: Restart monitoring stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_stack_app_dir }}"
+    state: restarted
+    docker_cli: "{{ monitoring_stack_docker_cli_path }}"

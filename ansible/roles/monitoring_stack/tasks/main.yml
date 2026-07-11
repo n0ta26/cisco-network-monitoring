@@ -5,11 +5,19 @@
     state: directory
     mode: "{{ monitoring_stack_dir_mode }}"
 
+- name: Remove legacy Grafana dashboard provisioning configuration
+  ansible.builtin.file:
+    path: >-
+      {{ monitoring_stack_app_dir }}/grafana/provisioning/dashboards/snmp-dashboards.yml
+    state: absent
+  notify: Restart monitoring stack
+
 - name: Copy monitoring stack files
   ansible.builtin.copy:
     src: "{{ monitoring_stack_source_dir }}/"
     dest: "{{ monitoring_stack_app_dir }}/"
     mode: "{{ monitoring_stack_file_mode }}"
+  notify: Restart monitoring stack
 
 - name: Ensure monitoring stack is running with Docker Compose
   community.docker.docker_compose_v2:

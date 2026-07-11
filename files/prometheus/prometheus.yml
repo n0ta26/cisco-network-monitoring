@@ -22,3 +22,26 @@ scrape_configs:
 
       - target_label: __address__
         replacement: snmp-exporter:9116
+
+  # Keep Cisco-specific polling isolated from interface polling. Devices that do
+  # not implement some Cisco OIDs can still be monitored through the if_mib job.
+  - job_name: "cisco-router-device"
+    metrics_path: /snmp
+    params:
+      auth: [cisco_v3]
+      module: [cisco_device]
+    static_configs:
+      - targets:
+          - 172.16.2.1
+        labels:
+          device: cisco-router
+          role: home-router
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+
+      - source_labels: [__param_target]
+        target_label: instance
+
+      - target_label: __address__
+        replacement: snmp-exporter:9116

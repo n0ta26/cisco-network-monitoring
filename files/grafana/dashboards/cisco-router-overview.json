@@ -527,6 +527,333 @@
             }
           }
         }
+      },
+      "panel-6": {
+        "kind": "Panel",
+        "spec": {
+          "id": 6,
+          "title": "CPU Utilization (5 min)",
+          "description": "Cisco Process MIBが返す装置全体CPU使用率の5分平均です。複数CPUがある場合は最大値を表示します。",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": { "name": "PBFA97CFB590B2093" },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "max(cpmCPUTotal5minRev{job=\"cisco-router-device\", instance=\"172.16.2.1\"})",
+                        "legendFormat": "CPU 5 min",
+                        "range": true
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.0.1",
+            "spec": {
+              "options": {
+                "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+                "tooltip": { "mode": "single", "sort": "none" }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "percent",
+                  "min": 0,
+                  "max": 100,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      { "value": 0, "color": "green" },
+                      { "value": 70, "color": "yellow" },
+                      { "value": 90, "color": "red" }
+                    ]
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-7": {
+        "kind": "Panel",
+        "spec": {
+          "id": 7,
+          "title": "Memory Utilization",
+          "description": "Cisco Enhanced Memory Pool MIBと旧Cisco Memory Pool MIBの使用率です。対応する系列だけが表示されます。",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": { "name": "PBFA97CFB590B2093" },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "100 * cempMemPoolUsed{job=\"cisco-router-device\", instance=\"172.16.2.1\"} / (cempMemPoolUsed{job=\"cisco-router-device\", instance=\"172.16.2.1\"} + cempMemPoolFree{job=\"cisco-router-device\", instance=\"172.16.2.1\"})",
+                        "legendFormat": "{{entPhysicalName}} / {{cempMemPoolName}}",
+                        "range": true
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": { "name": "PBFA97CFB590B2093" },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "100 * ciscoMemoryPoolUsed{job=\"cisco-router-device\", instance=\"172.16.2.1\"} / (ciscoMemoryPoolUsed{job=\"cisco-router-device\", instance=\"172.16.2.1\"} + ciscoMemoryPoolFree{job=\"cisco-router-device\", instance=\"172.16.2.1\"})",
+                        "legendFormat": "{{ciscoMemoryPoolName}}",
+                        "range": true
+                      }
+                    },
+                    "refId": "B",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.0.1",
+            "spec": {
+              "options": {
+                "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+                "tooltip": { "mode": "single", "sort": "none" }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "percent",
+                  "min": 0,
+                  "max": 100,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      { "value": 0, "color": "green" },
+                      { "value": 80, "color": "yellow" },
+                      { "value": 90, "color": "red" }
+                    ]
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-8": {
+        "kind": "Panel",
+        "spec": {
+          "id": 8,
+          "title": "Memory Used",
+          "description": "メモリプールごとの使用量です。新旧両方のCisco Memory Pool MIBを照会します。",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": { "name": "PBFA97CFB590B2093" },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "cempMemPoolUsed{job=\"cisco-router-device\", instance=\"172.16.2.1\"}",
+                        "legendFormat": "{{entPhysicalName}} / {{cempMemPoolName}}",
+                        "range": true
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": { "name": "PBFA97CFB590B2093" },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "ciscoMemoryPoolUsed{job=\"cisco-router-device\", instance=\"172.16.2.1\"}",
+                        "legendFormat": "{{ciscoMemoryPoolName}}",
+                        "range": true
+                      }
+                    },
+                    "refId": "B",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.0.1",
+            "spec": {
+              "options": {
+                "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+                "tooltip": { "mode": "single", "sort": "none" }
+              },
+              "fieldConfig": {
+                "defaults": { "unit": "bytes" },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-10": {
+        "kind": "Panel",
+        "spec": {
+          "id": 10,
+          "title": "Power Status",
+          "description": "FRUごとの電源運用状態です。値1の系列名に現在の状態が表示されます。",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": { "name": "PBFA97CFB590B2093" },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "cefcFRUPowerOperStatus{job=\"cisco-router-device\", instance=\"172.16.2.1\"} == 1",
+                        "legendFormat": "{{entPhysicalName}}: {{cefcFRUPowerOperStatus}}",
+                        "range": true
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.1",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "textMode": "name"
+              },
+              "fieldConfig": {
+                "defaults": { "unit": "none" },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-11": {
+        "kind": "Panel",
+        "spec": {
+          "id": 11,
+          "title": "Software Image",
+          "description": "OLD-CISCO-IMAGE-MIBが返す稼働中のCisco IOSイメージ情報です。",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": { "name": "PBFA97CFB590B2093" },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "ciscoImageString{job=\"cisco-router-device\", instance=\"172.16.2.1\"}",
+                        "instant": true,
+                        "legendFormat": "{{ciscoImageString}}",
+                        "range": false
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.1",
+            "spec": {
+              "options": {
+                "colorMode": "none",
+                "graphMode": "none",
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "textMode": "name"
+              },
+              "fieldConfig": {
+                "defaults": { "unit": "none" },
+                "overrides": []
+              }
+            }
+          }
+        }
       }
     },
     "layout": {
@@ -589,12 +916,77 @@
             "kind": "GridLayoutItem",
             "spec": {
               "x": 0,
+              "y": 40,
+              "width": 24,
+              "height": 8,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-3"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 0,
               "y": 16,
               "width": 12,
               "height": 8,
               "element": {
                 "kind": "ElementReference",
-                "name": "panel-3"
+                "name": "panel-6"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 12,
+              "y": 16,
+              "width": 12,
+              "height": 8,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-7"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 8,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-8"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 12,
+              "y": 24,
+              "width": 12,
+              "height": 8,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-10"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 0,
+              "y": 32,
+              "width": 24,
+              "height": 8,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-11"
               }
             }
           }
