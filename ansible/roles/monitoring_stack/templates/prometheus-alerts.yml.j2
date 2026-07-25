@@ -1,0 +1,177 @@
+---
+groups:
+  - name: cisco-router-availability
+    rules:
+      - alert: CiscoSnmpCollectionFailed
+        expr: up{job=~"cisco-router-(snmp|device)"} == 0
+        for: "{{ monitoring_stack_alert_snmp_down_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_snmp_down_severity }}"
+        annotations:
+          summary: >-
+            SNMP collection failed for
+            {{ '{{' }} $labels.instance {{ '}}' }}
+          description: >-
+            Prometheus has been unable to collect
+            {{ '{{' }} $labels.job {{ '}}' }} metrics from
+            {{ '{{' }} $labels.instance {{ '}}' }}.
+
+      - alert: CiscoInterfaceAdminUpOperDown
+        expr: |
+          ifAdminStatus{job="cisco-router-snmp"} == 1
+          and on(instance, ifIndex)
+          ifOperStatus{job="cisco-router-snmp"} != 1
+        for: "{{ monitoring_stack_alert_interface_down_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_interface_down_severity }}"
+        annotations:
+          summary: >-
+            Interface {{ '{{' }} $labels.ifName {{ '}}' }} is operationally down
+          description: >-
+            Interface {{ '{{' }} $labels.ifName {{ '}}' }} on
+            {{ '{{' }} $labels.instance {{ '}}' }} is administratively up but
+            operationally down.
+
+  - name: cisco-router-interface-health
+    rules:
+      - alert: CiscoInterfaceInboundBandwidthHigh
+        expr: |
+          (
+            rate(ifHCInOctets{job="cisco-router-snmp"}[{{ monitoring_stack_alert_rate_window }}])
+            * 8 * 100
+            / on(instance, ifIndex)
+            (ifHighSpeed{job="cisco-router-snmp"} * 1000000)
+          ) > {{ monitoring_stack_alert_bandwidth_utilization_percent }}
+          and on(instance, ifIndex)
+          ifHighSpeed{job="cisco-router-snmp"} > 0
+        for: "{{ monitoring_stack_alert_bandwidth_high_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_bandwidth_high_severity }}"
+        annotations:
+          summary: >-
+            High inbound utilization on {{ '{{' }} $labels.ifName {{ '}}' }}
+          description: >-
+            Inbound utilization on {{ '{{' }} $labels.instance {{ '}}' }}
+            interface {{ '{{' }} $labels.ifName {{ '}}' }} is
+            {{ '{{' }} printf "%.1f" $value {{ '}}' }}%.
+
+      - alert: CiscoInterfaceOutboundBandwidthHigh
+        expr: |
+          (
+            rate(ifHCOutOctets{job="cisco-router-snmp"}[{{ monitoring_stack_alert_rate_window }}])
+            * 8 * 100
+            / on(instance, ifIndex)
+            (ifHighSpeed{job="cisco-router-snmp"} * 1000000)
+          ) > {{ monitoring_stack_alert_bandwidth_utilization_percent }}
+          and on(instance, ifIndex)
+          ifHighSpeed{job="cisco-router-snmp"} > 0
+        for: "{{ monitoring_stack_alert_bandwidth_high_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_bandwidth_high_severity }}"
+        annotations:
+          summary: >-
+            High outbound utilization on {{ '{{' }} $labels.ifName {{ '}}' }}
+          description: >-
+            Outbound utilization on {{ '{{' }} $labels.instance {{ '}}' }}
+            interface {{ '{{' }} $labels.ifName {{ '}}' }} is
+            {{ '{{' }} printf "%.1f" $value {{ '}}' }}%.
+
+      - alert: CiscoInterfaceErrorsIncreasing
+        expr: |
+          (
+            rate(ifInErrors{job="cisco-router-snmp"}[{{ monitoring_stack_alert_rate_window }}])
+            + on(instance, ifIndex)
+            rate(ifOutErrors{job="cisco-router-snmp"}[{{ monitoring_stack_alert_rate_window }}])
+          ) > {{ monitoring_stack_alert_interface_error_rate }}
+        for: "{{ monitoring_stack_alert_interface_error_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_interface_error_severity }}"
+        annotations:
+          summary: >-
+            Interface errors increasing on {{ '{{' }} $labels.ifName {{ '}}' }}
+          description: >-
+            Combined inbound and outbound error rate on
+            {{ '{{' }} $labels.instance {{ '}}' }} interface
+            {{ '{{' }} $labels.ifName {{ '}}' }} is
+            {{ '{{' }} printf "%.2f" $value {{ '}}' }} packets/s.
+
+      - alert: CiscoInterfaceDiscardsIncreasing
+        expr: |
+          (
+            rate(ifInDiscards{job="cisco-router-snmp"}[{{ monitoring_stack_alert_rate_window }}])
+            + on(instance, ifIndex)
+            rate(ifOutDiscards{job="cisco-router-snmp"}[{{ monitoring_stack_alert_rate_window }}])
+          ) > {{ monitoring_stack_alert_interface_discard_rate }}
+        for: "{{ monitoring_stack_alert_interface_discard_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_interface_discard_severity }}"
+        annotations:
+          summary: >-
+            Interface discards increasing on {{ '{{' }} $labels.ifName {{ '}}' }}
+          description: >-
+            Combined inbound and outbound discard rate on
+            {{ '{{' }} $labels.instance {{ '}}' }} interface
+            {{ '{{' }} $labels.ifName {{ '}}' }} is
+            {{ '{{' }} printf "%.2f" $value {{ '}}' }} packets/s.
+
+  - name: cisco-router-resource-health
+    rules:
+      - alert: CiscoCpuUtilizationHigh
+        expr: |
+          max by(instance, device, role) (
+            cpmCPUTotal5minRev{job="cisco-router-device"}
+          ) > {{ monitoring_stack_alert_cpu_utilization_percent }}
+        for: "{{ monitoring_stack_alert_cpu_high_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_cpu_high_severity }}"
+        annotations:
+          summary: >-
+            High CPU utilization on {{ '{{' }} $labels.instance {{ '}}' }}
+          description: >-
+            Five-minute CPU utilization is
+            {{ '{{' }} printf "%.1f" $value {{ '}}' }}%.
+
+      - alert: CiscoMemoryUtilizationHigh
+        expr: |
+          (
+            100 * cempMemPoolUsed{job="cisco-router-device"}
+            / (
+              cempMemPoolUsed{job="cisco-router-device"}
+              + cempMemPoolFree{job="cisco-router-device"}
+            )
+          ) > {{ monitoring_stack_alert_memory_utilization_percent }}
+          or
+          (
+            100 * ciscoMemoryPoolUsed{job="cisco-router-device"}
+            / (
+              ciscoMemoryPoolUsed{job="cisco-router-device"}
+              + ciscoMemoryPoolFree{job="cisco-router-device"}
+            )
+          ) > {{ monitoring_stack_alert_memory_utilization_percent }}
+        for: "{{ monitoring_stack_alert_memory_high_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_memory_high_severity }}"
+        annotations:
+          summary: >-
+            High memory utilization on {{ '{{' }} $labels.instance {{ '}}' }}
+          description: >-
+            Memory pool {{ '{{' }} $labels.cempMemPoolName {{ '}}' }}{{
+            '{{' }} $labels.ciscoMemoryPoolName {{ '}}' }} utilization is
+            {{ '{{' }} printf "%.1f" $value {{ '}}' }}%.
+
+      - alert: CiscoTemperatureHigh
+        expr: |
+          entSensorValue{
+            job="cisco-router-device",
+            entSensorType="8",
+            entSensorScale="9"
+          } > {{ monitoring_stack_alert_temperature_celsius }}
+        for: "{{ monitoring_stack_alert_temperature_high_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_temperature_high_severity }}"
+        annotations:
+          summary: >-
+            High temperature on {{ '{{' }} $labels.instance {{ '}}' }}
+          description: >-
+            Sensor {{ '{{' }} $labels.entPhysicalName {{ '}}' }} reports
+            {{ '{{' }} printf "%.1f" $value {{ '}}' }} degrees Celsius.
