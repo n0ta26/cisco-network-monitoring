@@ -39,3 +39,6 @@ jobs:
       - name: Run syntax check
         working-directory: ansible
         run: ansible-playbook -i inventory.yml playbooks/deploy-monitoring.yml --syntax-check
+
+      - name: Validate Docker Compose, Prometheus, and Alertmanager configuration
+        run: ./scripts/validate-monitoring-config.sh
