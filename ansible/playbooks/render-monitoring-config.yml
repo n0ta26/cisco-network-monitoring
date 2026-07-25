@@ -1,0 +1,47 @@
+---
+- name: Render monitoring configuration for validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - "{{ playbook_dir }}/../roles/monitoring_stack/defaults/main.yml"
+
+  pre_tasks:
+    - name: Validate configuration output directory
+      ansible.builtin.assert:
+        that:
+          - monitoring_config_output_dir is defined
+          - monitoring_config_output_dir | length > 1
+          - monitoring_config_output_dir is ansible.builtin.match('^/')
+        fail_msg: >-
+          Pass an absolute monitoring_config_output_dir outside the repository.
+
+    - name: Validate monitoring alert settings
+      ansible.builtin.include_tasks: >-
+        {{ playbook_dir }}/../roles/monitoring_stack/tasks/validate.yml
+
+  tasks:
+    - name: Ensure rendered configuration directories exist
+      ansible.builtin.file:
+        path: "{{ monitoring_config_output_dir }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - alertmanager
+        - prometheus/rules
+
+    - name: Render configuration files
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ monitoring_config_output_dir }}/{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - src: >-
+            {{ playbook_dir }}/../roles/monitoring_stack/templates/alertmanager.yml.j2
+          dest: alertmanager/alertmanager.yml
+          mode: "0600"
+        - src: >-
+            {{ playbook_dir }}/../roles/monitoring_stack/templates/prometheus-alerts.yml.j2
+          dest: prometheus/rules/cisco-router-alerts.yml
+          mode: "0644"

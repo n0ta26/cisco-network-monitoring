@@ -15,10 +15,26 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
     restart: unless-stopped
     depends_on:
       - snmp-exporter
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    user: "65534:65534"
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:latest
@@ -35,4 +51,5 @@ services:
 
 volumes:
   prometheus-data:
+  alertmanager-data:
   grafana-data:

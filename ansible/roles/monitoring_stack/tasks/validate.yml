@@ -1,0 +1,20 @@
+---
+- name: Validate alert thresholds and notification destination
+  ansible.builtin.assert:
+    that:
+      - monitoring_stack_alert_bandwidth_utilization_percent | float >= 0
+      - monitoring_stack_alert_bandwidth_utilization_percent | float <= 100
+      - monitoring_stack_alert_interface_error_rate | float >= 0
+      - monitoring_stack_alert_interface_discard_rate | float >= 0
+      - monitoring_stack_alert_cpu_utilization_percent | float >= 0
+      - monitoring_stack_alert_cpu_utilization_percent | float <= 100
+      - monitoring_stack_alert_memory_utilization_percent | float >= 0
+      - monitoring_stack_alert_memory_utilization_percent | float <= 100
+      - monitoring_stack_alert_temperature_celsius | float > 0
+      - >-
+        monitoring_stack_alertmanager_webhook_url | length == 0 or
+        monitoring_stack_alertmanager_webhook_url is
+        ansible.builtin.match('^https?://')
+    fail_msg: >-
+      Alert thresholds must be in their documented ranges and the optional
+      webhook URL must use http:// or https://.

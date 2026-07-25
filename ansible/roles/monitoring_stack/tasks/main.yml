@@ -1,9 +1,21 @@
 ---
+- name: Validate monitoring alert settings
+  ansible.builtin.import_tasks: validate.yml
+
 - name: Ensure monitoring stack directory exists
   ansible.builtin.file:
     path: "{{ monitoring_stack_app_dir }}"
     state: directory
     mode: "{{ monitoring_stack_dir_mode }}"
+
+- name: Ensure generated configuration directories exist
+  ansible.builtin.file:
+    path: "{{ monitoring_stack_app_dir }}/{{ item }}"
+    state: directory
+    mode: "{{ monitoring_stack_dir_mode }}"
+  loop:
+    - alertmanager
+    - prometheus/rules
 
 - name: Remove legacy Grafana dashboard provisioning configuration
   ansible.builtin.file:
@@ -17,6 +29,23 @@
     src: "{{ monitoring_stack_source_dir }}/"
     dest: "{{ monitoring_stack_app_dir }}/"
     mode: "{{ monitoring_stack_file_mode }}"
+  notify: Restart monitoring stack
+
+- name: Render Prometheus alert rules
+  ansible.builtin.template:
+    src: prometheus-alerts.yml.j2
+    dest: >-
+      {{ monitoring_stack_app_dir }}/prometheus/rules/cisco-router-alerts.yml
+    mode: "{{ monitoring_stack_file_mode }}"
+  notify: Restart monitoring stack
+
+- name: Render Alertmanager configuration
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: "{{ monitoring_stack_app_dir }}/alertmanager/alertmanager.yml"
+    owner: "{{ monitoring_stack_alertmanager_config_owner }}"
+    group: "{{ monitoring_stack_alertmanager_config_group }}"
+    mode: "{{ monitoring_stack_secret_file_mode }}"
   notify: Restart monitoring stack
 
 - name: Ensure monitoring stack is running with Docker Compose

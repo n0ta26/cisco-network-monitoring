@@ -1,7 +1,8 @@
 # cisco-network-monitoring
 
 自宅ラボの Cisco ルータを対象に、SNMP で情報収集できる監視基盤
-（`snmp-exporter` / `Prometheus` / `Grafana`）を Ansible でプロビジョニングするためのリポジトリです。
+（`snmp-exporter` / `Prometheus` / `Alertmanager` / `Grafana`）を Ansible で
+プロビジョニングするためのリポジトリです。
 
 ## 前提
 
@@ -31,6 +32,8 @@ nix develop
    `cisco-router-snmp` と `cisco-router-device` には同じ対象機器を設定してください。
 3. SNMPv3 認証情報を設定する  
    `files/snmp_exporter/snmp.yml` の `auths.cisco_v3` に Cisco ルータで設定済みの `username` / `password` / `priv_password` を設定します。
+4. アラートの通知先や閾値を設定する
+   [アラート通知](#アラート通知)を参照し、必要な Ansible 変数を上書きします。
 
 ## デプロイ
 
@@ -42,7 +45,102 @@ ansible-playbook -i ansible/inventory.yml ansible/playbooks/deploy-monitoring.ym
 
 - Grafana: `http://<monitoring-host>:3000`
 - Prometheus: `http://<monitoring-host>:9090`
+- Alertmanager: `http://<monitoring-host>:9093`
 - SNMP Exporter: `http://<monitoring-host>:9116`
+
+## アラート通知
+
+Prometheus のアラートを Alertmanager へ送り、任意の Webhook へ通知します。Webhook を
+設定しない場合も、発生中のアラートは Prometheus と Alertmanager の Web UI で確認できます。
+
+通知先は、例えば `ansible/group_vars/monitoring_servers.yml` で設定します。Webhook URL に
+認証情報が含まれる場合は、平文でコミットせず Ansible Vault などで暗号化してください。
+
+```yaml
+monitoring_stack_alertmanager_webhook_url: "https://example.net/prometheus-alerts"
+monitoring_stack_alertmanager_webhook_send_resolved: true
+```
+
+Alertmanager の通知間隔は次の変数で上書きできます。
+
+| 変数 | デフォルト | 用途 |
+| --- | --- | --- |
+| `monitoring_stack_alertmanager_resolve_timeout` | `5m` | 更新されないアラートを解決済みとみなすまでの時間 |
+| `monitoring_stack_alertmanager_group_wait` | `30s` | 同時発生したアラートを最初にまとめる待ち時間 |
+| `monitoring_stack_alertmanager_group_interval` | `5m` | 同じグループの追加通知間隔 |
+| `monitoring_stack_alertmanager_repeat_interval` | `4h` | 継続中アラートの再通知間隔 |
+
+Prometheus は次のルールを評価します。閾値、継続時間、severity はすべて Ansible 変数で
+上書きできます。`for` の継続時間と Alertmanager のグルーピング／再通知間隔により、
+一時的なフラップや短時間のスパイクによる過剰通知を抑えます。
+
+| 障害条件 | 閾値変数（デフォルト） | 継続時間変数（デフォルト） | severity変数（デフォルト） |
+| --- | --- | --- | --- |
+| SNMP 収集失敗 | - | `monitoring_stack_alert_snmp_down_for` (`2m`) | `monitoring_stack_alert_snmp_down_severity` (`critical`) |
+| admin-up / oper-down | - | `monitoring_stack_alert_interface_down_for` (`5m`) | `monitoring_stack_alert_interface_down_severity` (`critical`) |
+| 受信／送信帯域使用率 | `monitoring_stack_alert_bandwidth_utilization_percent` (`85`) | `monitoring_stack_alert_bandwidth_high_for` (`10m`) | `monitoring_stack_alert_bandwidth_high_severity` (`warning`) |
+| error 増加（受信＋送信 packets/s） | `monitoring_stack_alert_interface_error_rate` (`1`) | `monitoring_stack_alert_interface_error_for` (`5m`) | `monitoring_stack_alert_interface_error_severity` (`warning`) |
+| discard 増加（受信＋送信 packets/s） | `monitoring_stack_alert_interface_discard_rate` (`1`) | `monitoring_stack_alert_interface_discard_for` (`5m`) | `monitoring_stack_alert_interface_discard_severity` (`warning`) |
+| CPU 使用率 | `monitoring_stack_alert_cpu_utilization_percent` (`85`) | `monitoring_stack_alert_cpu_high_for` (`10m`) | `monitoring_stack_alert_cpu_high_severity` (`warning`) |
+| メモリ使用率 | `monitoring_stack_alert_memory_utilization_percent` (`90`) | `monitoring_stack_alert_memory_high_for` (`10m`) | `monitoring_stack_alert_memory_high_severity` (`warning`) |
+| 温度 | `monitoring_stack_alert_temperature_celsius` (`70`) | `monitoring_stack_alert_temperature_high_for` (`10m`) | `monitoring_stack_alert_temperature_high_severity` (`critical`) |
+
+error / discard / 帯域の計算期間は `monitoring_stack_alert_rate_window`（デフォルト `5m`）で
+変更できます。温度ルールは ENTITY-SENSOR-MIB の Celsius、unit scale のセンサーを対象とし、
+対応センサーを公開しない機器では発火しません。
+
+### テスト通知
+
+デプロイ後、Alertmanager API へテストアラートを送信します。
+
+```bash
+curl -X POST "http://<monitoring-host>:9093/api/v2/alerts" \
+  -H "Content-Type: application/json" \
+  -d '[{
+    "labels": {
+      "alertname": "ManualNotificationTest",
+      "instance": "manual-test",
+      "severity": "warning"
+    },
+    "annotations": {
+      "summary": "Alertmanager manual notification test"
+    },
+    "endsAt": "2099-01-01T00:00:00Z"
+  }]'
+```
+
+Alertmanager の `http://<monitoring-host>:9093/#/alerts` と通知先 Webhook で受信を確認します。
+確認後は、同じラベルと過去の `endsAt` を送ってテストアラートを解決します。
+
+```bash
+curl -X POST "http://<monitoring-host>:9093/api/v2/alerts" \
+  -H "Content-Type: application/json" \
+  -d '[{
+    "labels": {
+      "alertname": "ManualNotificationTest",
+      "instance": "manual-test",
+      "severity": "warning"
+    },
+    "endsAt": "2000-01-01T00:00:00Z"
+  }]'
+```
+
+### 設定ファイルの検証
+
+CI は Compose 設定を検証し、Ansible テンプレートをレンダリングしたうえで
+Prometheus の `promtool` と Alertmanager の `amtool` を実行します。同じ検証は
+ローカルでも実行できます。
+
+```bash
+nix develop --command ./scripts/validate-monitoring-config.sh
+```
+
+独自の変数ファイルも検証する場合は、Ansible の追加引数として渡します。
+
+```bash
+nix develop --command ./scripts/validate-monitoring-config.sh \
+  -e @ansible/group_vars/monitoring_servers.yml
+```
 
 ## Grafana ダッシュボード
 
