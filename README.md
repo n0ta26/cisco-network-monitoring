@@ -28,12 +28,71 @@ nix develop
 1. 監視サーバ接続先を設定する  
    `ansible/inventory.yml` の `ansible_host` / `ansible_user` / `ansible_ssh_private_key_file` を環境に合わせて変更します。
 2. SNMP 監視対象を設定する  
-   `files/prometheus/prometheus.yml` の2つのジョブにある `targets`（例: `172.16.2.1`）やラベルを自宅ラボ構成に合わせます。
-   `cisco-router-snmp` と `cisco-router-device` には同じ対象機器を設定してください。
+   `monitoring_stack_targets` を Ansible の group vars で定義します。
+   詳細は[監視対象の管理](#監視対象の管理)を参照してください。
 3. SNMPv3 認証情報を設定する  
    `files/snmp_exporter/snmp.yml` の `auths.cisco_v3` に Cisco ルータで設定済みの `username` / `password` / `priv_password` を設定します。
+   監視対象の `auth_profile` には、ここで定義した auth 名を指定します。
 4. アラートの通知先や閾値を設定する
    [アラート通知](#アラート通知)を参照し、必要な Ansible 変数を上書きします。
+
+## 監視対象の管理
+
+監視対象は `monitoring_stack_targets` のリストで管理します。例えば
+`ansible/group_vars/monitoring_servers.yml` に次のように定義します。
+このファイルを Ansible Vault で暗号化している場合は、`ansible-vault edit` で編集してください。
+
+```yaml
+monitoring_stack_targets:
+  - name: edge-router
+    address: 172.16.2.1
+    role: edge-router
+    auth_profile: cisco_v3
+    modules:
+      - if_mib
+      - cisco_device
+    labels:
+      site: home
+      floor: first
+
+  - name: access-switch
+    address: 172.16.2.2
+    role: access-switch
+    auth_profile: cisco_v3
+    modules:
+      - if_mib
+    labels:
+      site: home
+      floor: second
+```
+
+各対象の項目は次のとおりです。
+
+| 項目 | 必須 | 用途 |
+| --- | --- | --- |
+| `name` | 必須 | Prometheus の `device` ラベル。リスト内で一意にする |
+| `address` | 必須 | SNMP Exporter が接続する IP アドレスまたはホスト名 |
+| `role` | 必須 | 機器の用途を表す `role` ラベル |
+| `auth_profile` | 必須 | `files/snmp_exporter/snmp.yml` の `auths` に定義した認証プロファイル名 |
+| `modules` | 必須 | 使用する SNMP モジュールのリスト。標準は `if_mib` と `cisco_device` |
+| `labels` | 任意 | `site` などの追加 Prometheus ラベル。不要な場合は `{}` または省略可能 |
+
+ロールのデフォルト値には従来と同じ `172.16.2.1` の1台構成が定義されているため、
+`monitoring_stack_targets` を上書きしない既存環境もそのままデプロイできます。group vars で
+定義する場合はリスト全体が置き換わるため、監視を継続する機器をすべて記載してください。
+
+機器を追加する場合はリストへ項目を追加し、`auth_profile` と `modules` が
+`files/snmp_exporter/snmp.yml` および
+`monitoring_stack_snmp_module_jobs` に存在することを確認します。機器を削除する場合は
+対象の項目をリストから削除します。変更後は設定検証を実行してから再デプロイしてください。
+Prometheus 設定は Ansible がリストから再生成するため、手作業で編集する必要はありません。
+
+```bash
+nix develop --command ./scripts/validate-monitoring-config.sh \
+  -e @ansible/group_vars/monitoring_servers.yml
+
+ansible-playbook -i ansible/inventory.yml ansible/playbooks/deploy-monitoring.yml
+```
 
 ## デプロイ
 
@@ -127,9 +186,9 @@ curl -X POST "http://<monitoring-host>:9093/api/v2/alerts" \
 
 ### 設定ファイルの検証
 
-CI は Compose 設定を検証し、Ansible テンプレートをレンダリングしたうえで
-Prometheus の `promtool` と Alertmanager の `amtool` を実行します。同じ検証は
-ローカルでも実行できます。
+CI はデフォルトの1台構成と2台構成のfixtureについて Ansible テンプレートをレンダリングし、
+生成した Prometheus 設定を `promtool` で検証します。Compose 設定と Alertmanager 設定も
+それぞれ Docker Compose、`amtool` で検証します。同じ検証はローカルでも実行できます。
 
 ```bash
 nix develop --command ./scripts/validate-monitoring-config.sh
@@ -155,7 +214,7 @@ Grafana 13 の V2 Resource 形式で、次のダッシュボードをリポジ�
 
 ### Cisco 固有メトリクス
 
-Prometheus は対象ルータを次の2ジョブで収集します。
+Prometheus は対象ごとの `modules` 設定に応じて次の2ジョブで収集します。
 
 - `cisco-router-snmp`: `if_mib` によるインターフェース情報
 - `cisco-router-device`: `cisco_device` による機器内部の状態
