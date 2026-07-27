@@ -40,5 +40,10 @@ jobs:
         working-directory: ansible
         run: ansible-playbook -i inventory.yml playbooks/deploy-monitoring.yml --syntax-check
 
-      - name: Validate Docker Compose, Prometheus, and Alertmanager configuration
+      - name: Validate default monitoring configuration
         run: ./scripts/validate-monitoring-config.sh
+
+      - name: Validate multiple monitoring targets
+        run: >-
+          ./scripts/validate-monitoring-config.sh
+          -e @ansible/tests/fixtures/multiple-monitoring-targets.yml

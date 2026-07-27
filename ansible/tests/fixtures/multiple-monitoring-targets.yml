@@ -1,0 +1,22 @@
+---
+monitoring_stack_targets:
+  - name: edge-router
+    address: 192.0.2.10
+    role: edge-router
+    auth_profile: cisco_v3
+    modules:
+      - if_mib
+      - cisco_device
+    labels:
+      environment: test
+      site: tokyo
+
+  - name: access-switch
+    address: 192.0.2.20
+    role: access-switch
+    auth_profile: cisco_v3
+    modules:
+      - if_mib
+    labels:
+      environment: test
+      site: osaka
