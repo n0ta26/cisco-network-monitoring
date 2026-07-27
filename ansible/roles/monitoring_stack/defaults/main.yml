@@ -8,6 +8,27 @@ monitoring_stack_dir_mode: "0755"
 monitoring_stack_alertmanager_config_owner: "65534"
 monitoring_stack_alertmanager_config_group: "65534"
 
+# SNMP targets are rendered into Prometheus scrape configuration. Each module
+# keeps its own scrape job so a failing device-specific module does not block
+# interface polling.
+monitoring_stack_snmp_module_jobs:
+  - module: if_mib
+    job_name: cisco-router-snmp
+  - module: cisco_device
+    job_name: cisco-router-device
+
+# This default preserves the original single-router deployment. Override the
+# entire list in group_vars to add, update, or remove monitored devices.
+monitoring_stack_targets:
+  - name: cisco-router
+    address: 172.16.2.1
+    role: home-router
+    auth_profile: cisco_v3
+    modules:
+      - if_mib
+      - cisco_device
+    labels: {}
+
 # Alertmanager routing. Leave the webhook URL empty to keep alerts visible only
 # in Prometheus and Alertmanager without sending external notifications.
 monitoring_stack_alertmanager_webhook_url: ""

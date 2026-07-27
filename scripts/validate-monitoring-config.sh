@@ -26,7 +26,7 @@ docker compose \
 docker run --rm \
   --user "${validator_user}" \
   --entrypoint /bin/promtool \
-  -v "${repository_root}/files/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+  -v "${validation_dir}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
   -v "${validation_dir}/prometheus/rules:/etc/prometheus/rules:ro" \
   prom/prometheus:latest \
   check config /etc/prometheus/prometheus.yml

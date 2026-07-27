@@ -42,6 +42,44 @@
           dest: alertmanager/alertmanager.yml
           mode: "0600"
         - src: >-
+            {{ playbook_dir }}/../roles/monitoring_stack/templates/prometheus.yml.j2
+          dest: prometheus/prometheus.yml
+          mode: "0644"
+        - src: >-
             {{ playbook_dir }}/../roles/monitoring_stack/templates/prometheus-alerts.yml.j2
           dest: prometheus/rules/cisco-router-alerts.yml
           mode: "0644"
+
+    - name: Read rendered Prometheus configuration
+      ansible.builtin.slurp:
+        src: "{{ monitoring_config_output_dir }}/prometheus/prometheus.yml"
+      register: rendered_prometheus_configuration
+
+    - name: Validate rendered Prometheus target count
+      vars:
+        rendered_prometheus_data: >-
+          {{
+            rendered_prometheus_configuration.content
+            | b64decode
+            | from_yaml
+          }}
+        expected_target_module_pairs: >-
+          {{
+            monitoring_stack_targets
+            | map(attribute='modules')
+            | map('length')
+            | sum
+          }}
+        rendered_target_module_pairs: >-
+          {{
+            rendered_prometheus_data.scrape_configs
+            | map(attribute='static_configs')
+            | map('length')
+            | sum
+          }}
+      ansible.builtin.assert:
+        that:
+          - rendered_target_module_pairs == expected_target_module_pairs
+        fail_msg: >-
+          Rendered Prometheus configuration does not contain every requested
+          target and module combination.
