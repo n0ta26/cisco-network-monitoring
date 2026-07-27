@@ -18,3 +18,118 @@
     fail_msg: >-
       Alert thresholds must be in their documented ranges and the optional
       webhook URL must use http:// or https://.
+
+- name: Validate SNMP module job catalog
+  ansible.builtin.assert:
+    that:
+      - monitoring_stack_snmp_module_jobs | ansible.builtin.type_debug == "list"
+      - monitoring_stack_snmp_module_jobs | length > 0
+      - >-
+        monitoring_stack_snmp_module_jobs
+        | map(attribute='module')
+        | unique
+        | length == monitoring_stack_snmp_module_jobs | length
+      - >-
+        monitoring_stack_snmp_module_jobs
+        | map(attribute='job_name')
+        | unique
+        | length == monitoring_stack_snmp_module_jobs | length
+    fail_msg: >-
+      monitoring_stack_snmp_module_jobs must be a non-empty list with unique
+      module and job_name values.
+
+- name: Validate each SNMP module job
+  ansible.builtin.assert:
+    that:
+      - item | ansible.builtin.type_debug == "dict"
+      - item.module is defined
+      - item.module | ansible.builtin.type_debug == "str"
+      - item.module | length > 0
+      - item.job_name is defined
+      - item.job_name | ansible.builtin.type_debug == "str"
+      - item.job_name | length > 0
+    fail_msg: >-
+      Each monitoring_stack_snmp_module_jobs item must define non-empty module
+      and job_name strings.
+  loop: "{{ monitoring_stack_snmp_module_jobs }}"
+  loop_control:
+    label: "{{ item.module | default('unnamed module') }}"
+
+- name: Validate monitoring target list
+  ansible.builtin.assert:
+    that:
+      - monitoring_stack_targets | ansible.builtin.type_debug == "list"
+      - monitoring_stack_targets | length > 0
+    fail_msg: monitoring_stack_targets must be a non-empty list.
+
+- name: Validate each monitoring target
+  ansible.builtin.assert:
+    that:
+      - item | ansible.builtin.type_debug == "dict"
+      - item.name is defined
+      - item.name | ansible.builtin.type_debug == "str"
+      - item.name | length > 0
+      - item.address is defined
+      - item.address | ansible.builtin.type_debug == "str"
+      - item.address | length > 0
+      - item.role is defined
+      - item.role | ansible.builtin.type_debug == "str"
+      - item.role | length > 0
+      - item.auth_profile is defined
+      - item.auth_profile | ansible.builtin.type_debug == "str"
+      - item.auth_profile | length > 0
+      - item.modules is defined
+      - item.modules | ansible.builtin.type_debug == "list"
+      - item.modules | length > 0
+      - item.modules | unique | length == item.modules | length
+      - >-
+        item.modules
+        | difference(
+            monitoring_stack_snmp_module_jobs
+            | map(attribute='module')
+            | list
+          )
+        | length == 0
+      - item.labels | default({}) | ansible.builtin.type_debug == "dict"
+      - >-
+        item.labels
+        | default({})
+        | dict2items
+        | map(attribute='key')
+        | intersect([
+            '__address__',
+            'instance',
+            'job',
+            'device',
+            'role',
+            'auth_profile',
+            'snmp_module'
+          ])
+        | length == 0
+      - >-
+        item.labels
+        | default({})
+        | dict2items
+        | map(attribute='key')
+        | select(
+            'ansible.builtin.match',
+            '^(?!__)[a-zA-Z_][a-zA-Z0-9_]*$'
+          )
+        | length == item.labels | default({}) | length
+    fail_msg: >-
+      Each monitoring_stack_targets item must define name, address, role,
+      auth_profile, a non-empty list of configured modules, and optional valid
+      labels that do not override managed labels.
+  loop: "{{ monitoring_stack_targets }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed target') }}"
+
+- name: Validate unique monitoring target names
+  ansible.builtin.assert:
+    that:
+      - >-
+        monitoring_stack_targets
+        | map(attribute='name')
+        | unique
+        | length == monitoring_stack_targets | length
+    fail_msg: Monitoring target names must be unique.

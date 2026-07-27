@@ -39,6 +39,13 @@
     mode: "{{ monitoring_stack_file_mode }}"
   notify: Restart monitoring stack
 
+- name: Render Prometheus configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_stack_app_dir }}/prometheus/prometheus.yml"
+    mode: "{{ monitoring_stack_file_mode }}"
+  notify: Restart monitoring stack
+
 - name: Render Alertmanager configuration
   ansible.builtin.template:
     src: alertmanager.yml.j2

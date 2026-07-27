@@ -1,0 +1,55 @@
+global:
+  scrape_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+{% for module_job in monitoring_stack_snmp_module_jobs %}
+{% set matching_targets = namespace(count=0) %}
+{% for target in monitoring_stack_targets %}
+{% if module_job.module in target.modules %}
+{% set matching_targets.count = matching_targets.count + 1 %}
+{% endif %}
+{% endfor %}
+{% if matching_targets.count > 0 %}
+  - job_name: {{ module_job.job_name | to_json }}
+    metrics_path: /snmp
+    static_configs:
+{% for target in monitoring_stack_targets %}
+{% if module_job.module in target.modules %}
+      - targets:
+          - {{ target.address | to_json }}
+        labels:
+          device: {{ target.name | to_json }}
+          role: {{ target.role | to_json }}
+          auth_profile: {{ target.auth_profile | to_json }}
+          snmp_module: {{ module_job.module | to_json }}
+{% for label in target.labels | default({}) | dict2items | sort(attribute='key') %}
+          {{ label.key }}: {{ label.value | string | to_json }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+    relabel_configs:
+      - source_labels: [auth_profile]
+        target_label: __param_auth
+
+      - source_labels: [snmp_module]
+        target_label: __param_module
+
+      - source_labels: [__address__]
+        target_label: __param_target
+
+      - source_labels: [__param_target]
+        target_label: instance
+
+      - target_label: __address__
+        replacement: snmp-exporter:9116
+{% endif %}
+{% endfor %}
