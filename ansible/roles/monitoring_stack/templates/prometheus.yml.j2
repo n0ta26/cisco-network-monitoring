@@ -11,6 +11,33 @@ alerting:
             - alertmanager:9093
 
 scrape_configs:
+  - job_name: monitoring-stack
+    static_configs:
+      - targets:
+          - prometheus:9090
+        labels:
+          component: prometheus
+
+      - targets:
+          - alertmanager:9093
+        labels:
+          component: alertmanager
+
+      - targets:
+          - snmp-exporter:9116
+        labels:
+          component: snmp-exporter
+
+      - targets:
+          - grafana:3000
+        labels:
+          component: grafana
+
+      - targets:
+          - node-exporter:9100
+        labels:
+          component: node-exporter
+
 {% for module_job in monitoring_stack_snmp_module_jobs %}
 {% set matching_targets = namespace(count=0) %}
 {% for target in monitoring_stack_targets %}

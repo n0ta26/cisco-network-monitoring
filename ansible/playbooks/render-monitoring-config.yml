@@ -63,6 +63,26 @@
             | b64decode
             | from_yaml
           }}
+        expected_monitoring_components:
+          - alertmanager
+          - grafana
+          - node-exporter
+          - prometheus
+          - snmp-exporter
+        rendered_monitoring_stack_scrape_configs: >-
+          {{
+            rendered_prometheus_data.scrape_configs
+            | selectattr('job_name', 'equalto', 'monitoring-stack')
+            | list
+          }}
+        rendered_monitoring_components: >-
+          {{
+            rendered_monitoring_stack_scrape_configs[0].static_configs
+            | map(attribute='labels')
+            | map(attribute='component')
+            | list
+            | sort
+          }}
         expected_target_module_pairs: >-
           {{
             monitoring_stack_targets
@@ -70,16 +90,30 @@
             | map('length')
             | sum
           }}
-        rendered_target_module_pairs: >-
+        rendered_snmp_scrape_configs: >-
           {{
             rendered_prometheus_data.scrape_configs
+            | selectattr(
+                'job_name',
+                'in',
+                monitoring_stack_snmp_module_jobs
+                | map(attribute='job_name')
+                | list
+              )
+            | list
+          }}
+        rendered_target_module_pairs: >-
+          {{
+            rendered_snmp_scrape_configs
             | map(attribute='static_configs')
             | map('length')
             | sum
           }}
       ansible.builtin.assert:
         that:
+          - rendered_monitoring_stack_scrape_configs | length == 1
+          - rendered_monitoring_components == expected_monitoring_components
           - rendered_target_module_pairs == expected_target_module_pairs
         fail_msg: >-
-          Rendered Prometheus configuration does not contain every requested
-          target and module combination.
+          Rendered Prometheus configuration must contain every monitoring stack
+          component and every requested SNMP target and module combination.

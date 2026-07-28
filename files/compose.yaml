@@ -7,6 +7,35 @@ services:
     volumes:
       - ./snmp_exporter/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --spider
+        - http://127.0.0.1:9116/-/healthy
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    volumes:
+      - prometheus-data:/prometheus:ro
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --spider
+        - http://127.0.0.1:9100/metrics
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   prometheus:
     image: prom/prometheus:latest
@@ -19,8 +48,23 @@ services:
       - prometheus-data:/prometheus
     restart: unless-stopped
     depends_on:
-      - snmp-exporter
-      - alertmanager
+      snmp-exporter:
+        condition: service_healthy
+      alertmanager:
+        condition: service_healthy
+      node-exporter:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --spider
+        - http://127.0.0.1:9090/-/ready
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   alertmanager:
     image: prom/alertmanager:latest
@@ -35,6 +79,17 @@ services:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager-data:/alertmanager
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --spider
+        - http://127.0.0.1:9093/-/ready
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   grafana:
     image: grafana/grafana:latest
@@ -47,7 +102,19 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     restart: unless-stopped
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --spider
+        - http://127.0.0.1:3000/api/health
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 volumes:
   prometheus-data:
