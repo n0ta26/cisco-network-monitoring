@@ -15,6 +15,7 @@
           pkgs.ansible
           pkgs.net-snmp
           pkgs.ansible-lint
+          pkgs.jq
         ];
 
         shellHook = ''
