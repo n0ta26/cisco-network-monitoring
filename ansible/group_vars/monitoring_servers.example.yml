@@ -1,0 +1,2 @@
+monitoring_stack_alertmanager_webhook_url: "https://example.net/prometheus-alerts"
+monitoring_stack_alertmanager_webhook_send_resolved: true
