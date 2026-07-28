@@ -23,6 +23,15 @@ docker compose \
   config \
   --quiet
 
+for dashboard in "${repository_root}"/files/grafana/dashboards/*.json; do
+  jq --exit-status \
+    '.kind == "Dashboard"
+      and .apiVersion == "dashboard.grafana.app/v2"
+      and (.spec.title | length > 0)
+      and (.spec.elements | length > 0)' \
+    "${dashboard}" >/dev/null
+done
+
 docker run --rm \
   --user "${validator_user}" \
   --entrypoint /bin/promtool \

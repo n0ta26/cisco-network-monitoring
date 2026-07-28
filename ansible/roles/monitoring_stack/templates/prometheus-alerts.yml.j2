@@ -1,5 +1,126 @@
 ---
 groups:
+  - name: monitoring-stack-health
+    rules:
+      - alert: MonitoringStackComponentDown
+        expr: up{job="monitoring-stack"} == 0
+        for: "{{ monitoring_stack_alert_component_down_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_component_down_severity }}"
+        annotations:
+          summary: >-
+            Monitoring component
+            {{ '{{' }} $labels.component {{ '}}' }} is unavailable
+          description: >-
+            Prometheus cannot scrape
+            {{ '{{' }} $labels.component {{ '}}' }} at
+            {{ '{{' }} $labels.instance {{ '}}' }}.
+
+      - alert: PrometheusConfigReloadFailed
+        expr: |
+          prometheus_config_last_reload_successful{
+            job="monitoring-stack",
+            component="prometheus"
+          } == 0
+        for: "{{ monitoring_stack_alert_config_reload_failed_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_config_reload_failed_severity }}"
+        annotations:
+          summary: Prometheus configuration reload failed
+          description: >-
+            Prometheus is still running with the last valid configuration.
+            Validate the generated configuration and inspect the Prometheus
+            container logs before retrying the reload.
+
+      - alert: PrometheusDataStorageLow
+        expr: |
+          (
+            100
+            * node_filesystem_avail_bytes{
+                job="monitoring-stack",
+                component="node-exporter",
+                mountpoint="/prometheus"
+              }
+            / node_filesystem_size_bytes{
+                job="monitoring-stack",
+                component="node-exporter",
+                mountpoint="/prometheus"
+              }
+          ) < {{ monitoring_stack_alert_prometheus_data_free_percent }}
+        for: "{{ monitoring_stack_alert_prometheus_data_low_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_prometheus_data_low_severity }}"
+        annotations:
+          summary: Prometheus data storage is almost full
+          description: >-
+            The Prometheus data volume has
+            {{ '{{' }} printf "%.1f" $value {{ '}}' }}% free space remaining.
+
+      - alert: PrometheusDataStorageMetricsMissing
+        expr: |
+          absent(
+            node_filesystem_size_bytes{
+              job="monitoring-stack",
+              component="node-exporter",
+              mountpoint="/prometheus"
+            }
+          )
+        for: "{{ monitoring_stack_alert_prometheus_data_metrics_missing_for }}"
+        labels:
+          severity: >-
+            {{ monitoring_stack_alert_prometheus_data_metrics_missing_severity }}
+        annotations:
+          summary: Prometheus data storage metrics are missing
+          description: >-
+            Node Exporter is not exposing filesystem metrics for the
+            Prometheus data volume mounted at /prometheus.
+
+      - alert: MonitoringHostCpuUtilizationHigh
+        expr: |
+          100
+          - (
+            avg without(cpu, mode) (
+              rate(
+                node_cpu_seconds_total{
+                  job="monitoring-stack",
+                  component="node-exporter",
+                  mode="idle"
+                }[{{ monitoring_stack_alert_host_cpu_rate_window }}]
+              )
+            )
+            * 100
+          ) > {{ monitoring_stack_alert_host_cpu_utilization_percent }}
+        for: "{{ monitoring_stack_alert_host_cpu_high_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_host_cpu_high_severity }}"
+        annotations:
+          summary: Monitoring host CPU utilization is high
+          description: >-
+            CPU utilization on the monitoring host is
+            {{ '{{' }} printf "%.1f" $value {{ '}}' }}%.
+
+      - alert: MonitoringHostMemoryUtilizationHigh
+        expr: |
+          100 * (
+            1
+            - node_memory_MemAvailable_bytes{
+                job="monitoring-stack",
+                component="node-exporter"
+              }
+            / node_memory_MemTotal_bytes{
+                job="monitoring-stack",
+                component="node-exporter"
+              }
+          ) > {{ monitoring_stack_alert_host_memory_utilization_percent }}
+        for: "{{ monitoring_stack_alert_host_memory_high_for }}"
+        labels:
+          severity: "{{ monitoring_stack_alert_host_memory_high_severity }}"
+        annotations:
+          summary: Monitoring host memory utilization is high
+          description: >-
+            Memory utilization on the monitoring host is
+            {{ '{{' }} printf "%.1f" $value {{ '}}' }}%.
+
   - name: cisco-router-availability
     rules:
       - alert: CiscoSnmpCollectionFailed
