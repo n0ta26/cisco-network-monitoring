@@ -1,8 +1,8 @@
 # cisco-network-monitoring
 
 自宅ラボの Cisco ルータを対象に、SNMP で情報収集できる監視基盤
-（`snmp-exporter` / `Prometheus` / `Alertmanager` / `Grafana`）を Ansible で
-プロビジョニングするためのリポジトリです。
+（`snmp-exporter` / `Node Exporter` / `Prometheus` / `Alertmanager` /
+`Grafana`）を Ansible でプロビジョニングするためのリポジトリです。
 
 ## 前提
 
@@ -107,6 +107,9 @@ ansible-playbook -i ansible/inventory.yml ansible/playbooks/deploy-monitoring.ym
 - Alertmanager: `http://<monitoring-host>:9093`
 - SNMP Exporter: `http://<monitoring-host>:9116`
 
+Node Exporter は監視サーバの CPU、メモリ、および Prometheus データボリュームの容量を
+収集するため、Compose の内部ネットワークだけで公開します。
+
 ## アラート通知
 
 Prometheus のアラートを Alertmanager へ送り、任意の Webhook へ通知します。Webhook を
@@ -148,6 +151,87 @@ error / discard / 帯域の計算期間は `monitoring_stack_alert_rate_window`�
 変更できます。温度ルールは ENTITY-SENSOR-MIB の Celsius、unit scale のセンサーを対象とし、
 対応センサーを公開しない機器では発火しません。
 
+## 監視スタックのヘルス監視
+
+Prometheus は `monitoring-stack` ジョブで Prometheus、Alertmanager、SNMP Exporter、
+Node Exporter、Grafana の `/metrics` endpoint を収集します。Prometheus の
+`http://<monitoring-host>:9090/targets` で、各コンポーネントの状態を確認できます。
+
+Compose は全コンポーネントに HTTP healthcheck を設定しています。起動状態と healthcheck
+結果はデプロイ先の `/opt/network-monitoring` で確認します。
+
+```bash
+cd /opt/network-monitoring
+docker compose ps
+```
+
+Grafana の `Monitoring Stack - Health` ダッシュボードには次の状態を表示します。
+
+- 各コンポーネントの scrape 成否
+- 監視対象・SNMP モジュールごとの収集成否
+- Prometheus の直近の設定リロード成否
+- Prometheus データボリュームの使用率
+- 監視サーバの CPU とメモリの使用率
+
+Prometheus は監視スタック自身について次のアラートを評価します。
+
+| 障害条件 | 閾値変数（デフォルト） | 継続時間変数（デフォルト） | severity変数（デフォルト） |
+| --- | --- | --- | --- |
+| コンポーネントの scrape 失敗 | - | `monitoring_stack_alert_component_down_for` (`2m`) | `monitoring_stack_alert_component_down_severity` (`critical`) |
+| Prometheus 設定リロード失敗 | - | `monitoring_stack_alert_config_reload_failed_for` (`5m`) | `monitoring_stack_alert_config_reload_failed_severity` (`critical`) |
+| Prometheus データ空き容量低下 | `monitoring_stack_alert_prometheus_data_free_percent` (`15`) | `monitoring_stack_alert_prometheus_data_low_for` (`10m`) | `monitoring_stack_alert_prometheus_data_low_severity` (`critical`) |
+| Prometheus データ容量 metric 消失 | - | `monitoring_stack_alert_prometheus_data_metrics_missing_for` (`5m`) | `monitoring_stack_alert_prometheus_data_metrics_missing_severity` (`critical`) |
+| 監視サーバ CPU 使用率 | `monitoring_stack_alert_host_cpu_utilization_percent` (`90`) | `monitoring_stack_alert_host_cpu_high_for` (`10m`) | `monitoring_stack_alert_host_cpu_high_severity` (`warning`) |
+| 監視サーバメモリ使用率 | `monitoring_stack_alert_host_memory_utilization_percent` (`90`) | `monitoring_stack_alert_host_memory_high_for` (`10m`) | `monitoring_stack_alert_host_memory_high_severity` (`warning`) |
+
+CPU 使用率の計算期間は `monitoring_stack_alert_host_cpu_rate_window`（デフォルト `5m`）で
+変更できます。閾値や通知間隔を変更した場合は、設定検証後に再デプロイしてください。
+
+### 障害時の確認と復旧
+
+最初にコンテナ状態、healthcheck の詳細、直近のログを確認します。
+
+```bash
+cd /opt/network-monitoring
+docker compose ps
+docker inspect --format '{{json .State.Health}}' <container-name>
+docker compose logs --tail=200 <service-name>
+```
+
+主な障害ごとの確認・復旧手順は次のとおりです。
+
+| 症状 | 確認 | 復旧 |
+| --- | --- | --- |
+| コンポーネントが `unhealthy` または停止 | `docker compose logs --tail=200 <service-name>` と対象コンテナの healthcheck endpoint を確認 | 一時的な障害なら `docker compose restart <service-name>`。設定・ファイル不備なら修正後に Ansible で再デプロイ |
+| `CiscoSnmpCollectionFailed` | Prometheus の Targets で対象、auth、module を確認し、`docker compose logs --tail=200 snmp-exporter` を確認 | 到達性、SNMPv3 認証情報、対象の `auth_profile` / `modules` を修正して再デプロイ |
+| `PrometheusConfigReloadFailed` または Prometheus が起動しない | 下記の `promtool` で生成済み設定とルールを検証し、Prometheus ログのエラー位置を確認 | Ansible 変数またはテンプレートを修正し、検証成功後に再デプロイ |
+| `PrometheusDataStorageLow` | Grafana の使用率、`docker system df`、データ保存先ファイルシステムの空き容量を確認 | 不要な別データを安全に退避・削除するかファイルシステムを拡張し、Prometheus が正常に書き込めることを確認 |
+| CPU・メモリアラート | Grafana の推移と `docker stats`、監視サーバ上のプロセスを確認 | 高負荷の原因を解消するか監視サーバのリソースを増強 |
+
+デプロイ済みの Prometheus 設定は次のコマンドで検証できます。
+
+```bash
+cd /opt/network-monitoring
+docker run --rm \
+  --entrypoint /bin/promtool \
+  -v "$PWD/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+  -v "$PWD/prometheus/rules:/etc/prometheus/rules:ro" \
+  prom/prometheus:latest \
+  check config /etc/prometheus/prometheus.yml
+```
+
+修正後はローカルでリポジトリ全体の設定を検証してから再デプロイします。
+
+```bash
+nix develop --command ./scripts/validate-monitoring-config.sh \
+  -e @ansible/group_vars/monitoring_servers.yml
+
+ansible-playbook -i ansible/inventory.yml ansible/playbooks/deploy-monitoring.yml
+```
+
+Prometheus 自体が完全に停止すると、Prometheus から Alertmanager へアラートを送信できません。
+Compose healthcheck に加え、必要に応じて別ホストから Prometheus の `/-/ready` を監視してください。
+
 ### テスト通知
 
 デプロイ後、Alertmanager API へテストアラートを送信します。
@@ -187,8 +271,9 @@ curl -X POST "http://<monitoring-host>:9093/api/v2/alerts" \
 ### 設定ファイルの検証
 
 CI はデフォルトの1台構成と2台構成のfixtureについて Ansible テンプレートをレンダリングし、
-生成した Prometheus 設定を `promtool` で検証します。Compose 設定と Alertmanager 設定も
-それぞれ Docker Compose、`amtool` で検証します。同じ検証はローカルでも実行できます。
+生成した Prometheus 設定を `promtool` で検証します。Compose 設定、Grafana dashboard JSON、
+Alertmanager 設定もそれぞれ Docker Compose、`jq`、`amtool` で検証します。同じ検証は
+ローカルでも実行できます。
 
 ```bash
 nix develop --command ./scripts/validate-monitoring-config.sh
@@ -207,6 +292,7 @@ Grafana 13 の V2 Resource 形式で、次のダッシュボードをリポジ�
 
 - `Cisco Router - Overview`
 - `Cisco Router - Errors`
+- `Monitoring Stack - Health`
 
 ダッシュボード JSON は `files/grafana/dashboards` に配置され、デプロイ時に Grafana へ
 自動プロビジョニングされます。Grafana 上での編集は許可していますが、変更内容は
