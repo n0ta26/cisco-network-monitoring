@@ -27,20 +27,64 @@ nix develop
 
 1. 監視サーバ接続先を設定する  
    `ansible/inventory.yml` の `ansible_host` / `ansible_user` / `ansible_ssh_private_key_file` を環境に合わせて変更します。
-2. SNMP 監視対象を設定する  
+2. Ansible Vault のパスワードを設定する
+   [Ansible Vaultによる機密情報管理](#ansible-vaultによる機密情報管理)を参照し、
+   リポジトリルートに `secret` を作成します。
+3. SNMP 監視対象を設定する
    `monitoring_stack_targets` を Ansible の group vars で定義します。
    詳細は[監視対象の管理](#監視対象の管理)を参照してください。
-3. SNMPv3 認証情報を設定する  
+4. SNMPv3 認証情報を設定する
    `files/snmp_exporter/snmp.yml` の `auths.cisco_v3` に Cisco ルータで設定済みの `username` / `password` / `priv_password` を設定します。
    監視対象の `auth_profile` には、ここで定義した auth 名を指定します。
-4. アラートの通知先や閾値を設定する
+5. アラートの通知先や閾値を設定する
    [アラート通知](#アラート通知)を参照し、必要な Ansible 変数を上書きします。
+
+## Ansible Vaultによる機密情報管理
+
+Webhook URL などの機密情報を含む
+`ansible/group_vars/monitoring_servers.yml` は、Ansible Vault でファイル全体を暗号化して
+リポジトリに保存します。Vault パスワード自体は、リポジトリルートの `secret` に1行で
+記載します。
+
+```bash
+touch secret
+chmod 600 secret
+${EDITOR:-vi} secret
+```
+
+`secret` は `.gitignore` の `/secret` でGit管理から除外されています。作成後に次のコマンドで
+除外状態を確認できます。
+
+```bash
+git check-ignore secret
+```
+
+暗号化済みの変数ファイルは通常のエディタで直接編集せず、次のコマンドで復号・再暗号化
+しながら編集します。
+
+```bash
+nix develop --command ansible-vault edit \
+  --vault-password-file secret \
+  ansible/group_vars/monitoring_servers.yml
+```
+
+新しい平文の変数ファイルを暗号化する場合は、次のコマンドを使用します。
+
+```bash
+nix develop --command ansible-vault encrypt \
+  --vault-password-file secret \
+  ansible/group_vars/monitoring_servers.yml
+```
+
+Vault パスワードを変更する場合は、古いパスワードファイルを別途用意したうえで
+`ansible-vault rekey` を使用します。`secret` の内容や復号した変数ファイルはコミット
+しないでください。
 
 ## 監視対象の管理
 
 監視対象は `monitoring_stack_targets` のリストで管理します。例えば
 `ansible/group_vars/monitoring_servers.yml` に次のように定義します。
-このファイルを Ansible Vault で暗号化している場合は、`ansible-vault edit` で編集してください。
+このファイルは暗号化されているため、前節の `ansible-vault edit` で編集してください。
 
 ```yaml
 monitoring_stack_targets:
@@ -89,15 +133,22 @@ Prometheus 設定は Ansible がリストから再生成するため、手作業
 
 ```bash
 nix develop --command ./scripts/validate-monitoring-config.sh \
+  --vault-password-file secret \
   -e @ansible/group_vars/monitoring_servers.yml
 
-ansible-playbook -i ansible/inventory.yml ansible/playbooks/deploy-monitoring.yml
+ansible-playbook \
+  -i ansible/inventory.yml \
+  ansible/playbooks/deploy-monitoring.yml \
+  --vault-password-file secret
 ```
 
 ## デプロイ
 
 ```bash
-ansible-playbook -i ansible/inventory.yml ansible/playbooks/deploy-monitoring.yml
+ansible-playbook \
+  -i ansible/inventory.yml \
+  ansible/playbooks/deploy-monitoring.yml \
+  --vault-password-file secret
 ```
 
 デプロイ後、監視サーバの以下ポートで各コンポーネントにアクセスできます。
@@ -198,6 +249,7 @@ nix develop --command ./scripts/validate-monitoring-config.sh
 
 ```bash
 nix develop --command ./scripts/validate-monitoring-config.sh \
+  --vault-password-file secret \
   -e @ansible/group_vars/monitoring_servers.yml
 ```
 
