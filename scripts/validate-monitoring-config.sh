@@ -16,6 +16,7 @@ ANSIBLE_CONFIG="${repository_root}/ansible/ansible.cfg" \
   -i localhost, \
   "${repository_root}/ansible/playbooks/render-monitoring-config.yml" \
   -e "monitoring_config_output_dir=${validation_dir}" \
+  -e "@${repository_root}/ansible/tests/fixtures/monitoring-secrets.yml" \
   "$@"
 
 docker compose \

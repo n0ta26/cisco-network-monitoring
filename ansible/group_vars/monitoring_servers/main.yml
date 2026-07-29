@@ -1,0 +1,3 @@
+---
+# Keep the vault_ variable in vault.yml, encrypted with ansible-vault.
+monitoring_stack_snmp_auths: "{{ vault_monitoring_stack_snmp_auths }}"

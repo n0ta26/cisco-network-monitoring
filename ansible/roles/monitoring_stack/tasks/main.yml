@@ -16,6 +16,7 @@
   loop:
     - alertmanager
     - prometheus/rules
+    - snmp_exporter
 
 - name: Remove legacy Grafana dashboard provisioning configuration
   ansible.builtin.file:
@@ -29,6 +30,14 @@
     src: "{{ monitoring_stack_source_dir }}/"
     dest: "{{ monitoring_stack_app_dir }}/"
     mode: "{{ monitoring_stack_file_mode }}"
+  notify: Restart monitoring stack
+
+- name: Render SNMP exporter configuration with vaulted credentials
+  ansible.builtin.template:
+    src: snmp.yml.j2
+    dest: "{{ monitoring_stack_app_dir }}/snmp_exporter/snmp.yml"
+    mode: "{{ monitoring_stack_secret_file_mode }}"
+  no_log: true
   notify: Restart monitoring stack
 
 - name: Render Prometheus alert rules

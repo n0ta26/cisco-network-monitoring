@@ -8,6 +8,12 @@
     - "{{ playbook_dir }}/../roles/monitoring_stack/defaults/main.yml"
 
   pre_tasks:
+    - name: Use vaulted SNMP authentication profiles when provided
+      ansible.builtin.set_fact:
+        monitoring_stack_snmp_auths: "{{ vault_monitoring_stack_snmp_auths }}"
+      when: vault_monitoring_stack_snmp_auths is defined
+      no_log: true
+
     - name: Validate configuration output directory
       ansible.builtin.assert:
         that:
@@ -30,6 +36,7 @@
       loop:
         - alertmanager
         - prometheus/rules
+        - snmp_exporter
 
     - name: Render configuration files
       ansible.builtin.template:
@@ -49,11 +56,40 @@
             {{ playbook_dir }}/../roles/monitoring_stack/templates/prometheus-alerts.yml.j2
           dest: prometheus/rules/cisco-router-alerts.yml
           mode: "0644"
+        - src: >-
+            {{ playbook_dir }}/../roles/monitoring_stack/templates/snmp.yml.j2
+          dest: snmp_exporter/snmp.yml
+          mode: "0600"
+      no_log: true
 
     - name: Read rendered Prometheus configuration
       ansible.builtin.slurp:
         src: "{{ monitoring_config_output_dir }}/prometheus/prometheus.yml"
       register: rendered_prometheus_configuration
+
+    - name: Read rendered SNMP exporter configuration
+      ansible.builtin.slurp:
+        src: "{{ monitoring_config_output_dir }}/snmp_exporter/snmp.yml"
+      register: rendered_snmp_configuration
+      no_log: true
+
+    - name: Validate rendered SNMP exporter configuration
+      vars:
+        rendered_snmp_data: >-
+          {{
+            rendered_snmp_configuration.content
+            | b64decode
+            | from_yaml
+          }}
+      ansible.builtin.assert:
+        that:
+          - rendered_snmp_data.auths.keys() | sort
+            == monitoring_stack_snmp_auths.keys() | sort
+          - rendered_snmp_data.modules | length > 0
+        fail_msg: >-
+          Rendered SNMP exporter configuration must contain the supplied
+          authentication profiles and generated modules.
+      no_log: true
 
     - name: Validate rendered Prometheus target count
       vars:

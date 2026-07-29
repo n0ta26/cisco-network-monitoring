@@ -1,12 +1,5 @@
 auths:
-  cisco_v3:
-    version: 3
-    username: monitor-user
-    security_level: authPriv
-    password: "AUTH_PASSWORD"
-    auth_protocol: SHA
-    priv_protocol: AES
-    priv_password: "PRIV_PASSWORD"
+{{ monitoring_stack_snmp_auths | to_nice_yaml(indent=2) | indent(2, true) }}
 
 modules:
   apcups:
