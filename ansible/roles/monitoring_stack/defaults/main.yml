@@ -8,6 +8,9 @@ monitoring_stack_dir_mode: "0755"
 monitoring_stack_alertmanager_config_owner: "65534"
 monitoring_stack_alertmanager_config_group: "65534"
 
+# Store this mapping in an Ansible Vault encrypted inventory variable.
+monitoring_stack_snmp_auths: {}
+
 # SNMP targets are rendered into Prometheus scrape configuration. Each module
 # keeps its own scrape job so a failing device-specific module does not block
 # interface polling.

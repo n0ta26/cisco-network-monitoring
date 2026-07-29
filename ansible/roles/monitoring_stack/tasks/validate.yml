@@ -69,6 +69,21 @@
       - monitoring_stack_targets | length > 0
     fail_msg: monitoring_stack_targets must be a non-empty list.
 
+- name: Validate SNMP authentication profiles
+  ansible.builtin.assert:
+    that:
+      - monitoring_stack_snmp_auths | ansible.builtin.type_debug == "dict"
+      - monitoring_stack_snmp_auths | length > 0
+      - >-
+        monitoring_stack_targets
+        | map(attribute='auth_profile')
+        | difference(monitoring_stack_snmp_auths.keys() | list)
+        | length == 0
+    fail_msg: >-
+      monitoring_stack_snmp_auths must contain every auth_profile referenced
+      by monitoring_stack_targets. Store production values in Ansible Vault.
+  no_log: true
+
 - name: Validate each monitoring target
   ansible.builtin.assert:
     that:

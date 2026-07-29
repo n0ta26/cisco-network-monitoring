@@ -33,9 +33,9 @@ nix develop
 3. SNMP 監視対象を設定する
    `monitoring_stack_targets` を Ansible の group vars で定義します。
    詳細は[監視対象の管理](#監視対象の管理)を参照してください。
-4. SNMPv3 認証情報を設定する
-   `files/snmp_exporter/snmp.yml` の `auths.cisco_v3` に Cisco ルータで設定済みの `username` / `password` / `priv_password` を設定します。
-   監視対象の `auth_profile` には、ここで定義した auth 名を指定します。
+4. SNMPv3 認証情報を Ansible Vault に設定する
+   [SNMPv3 認証情報](#snmpv3-認証情報)の手順で暗号化した変数を作成します。
+   監視対象の `auth_profile` には、Vault 内で定義した auth 名を指定します。
 5. アラートの通知先や閾値を設定する
    [アラート通知](#アラート通知)を参照し、必要な Ansible 変数を上書きします。
 
@@ -117,7 +117,7 @@ monitoring_stack_targets:
 | `name` | 必須 | Prometheus の `device` ラベル。リスト内で一意にする |
 | `address` | 必須 | SNMP Exporter が接続する IP アドレスまたはホスト名 |
 | `role` | 必須 | 機器の用途を表す `role` ラベル |
-| `auth_profile` | 必須 | `files/snmp_exporter/snmp.yml` の `auths` に定義した認証プロファイル名 |
+| `auth_profile` | 必須 | Vault の `vault_monitoring_stack_snmp_auths` に定義した認証プロファイル名 |
 | `modules` | 必須 | 使用する SNMP モジュールのリスト。標準は `if_mib` と `cisco_device` |
 | `labels` | 任意 | `site` などの追加 Prometheus ラベル。不要な場合は `{}` または省略可能 |
 
@@ -126,7 +126,7 @@ monitoring_stack_targets:
 定義する場合はリスト全体が置き換わるため、監視を継続する機器をすべて記載してください。
 
 機器を追加する場合はリストへ項目を追加し、`auth_profile` と `modules` が
-`files/snmp_exporter/snmp.yml` および
+Vault の `vault_monitoring_stack_snmp_auths` および
 `monitoring_stack_snmp_module_jobs` に存在することを確認します。機器を削除する場合は
 対象の項目をリストから削除します。変更後は設定検証を実行してから再デプロイしてください。
 Prometheus 設定は Ansible がリストから再生成するため、手作業で編集する必要はありません。
@@ -140,6 +140,49 @@ ansible-playbook \
   -i ansible/inventory.yml \
   ansible/playbooks/deploy-monitoring.yml \
   --vault-password-file secret
+```
+
+## SNMPv3 認証情報
+
+追跡対象の SNMP Exporter 設定には認証情報を保存しません。デプロイ時に
+`vault_monitoring_stack_snmp_auths` を `monitoring_stack_snmp_auths` として参照し、
+`ansible/roles/monitoring_stack/templates/snmp.yml.j2` から配置用 `snmp.yml` を生成します。
+
+初回は example をコピーして実値へ置き換え、直後に既存の Vault パスワードで暗号化します。
+Webhook 用の `monitoring_servers.yml` と SNMP 用の `vault.yml` は同じ `secret` を使用します。
+
+```bash
+cp ansible/group_vars/monitoring_servers/vault.example.yml \
+  ansible/group_vars/monitoring_servers/vault.yml
+ansible-vault encrypt \
+  --vault-password-file secret \
+  ansible/group_vars/monitoring_servers/vault.yml
+```
+
+暗号化済みの `vault.yml` はコミットできます。Vault パスワードを保存する `secret` は
+`.gitignore` で除外されています。以降の編集と内容確認は次のように行います。
+
+```bash
+ansible-vault edit \
+  --vault-password-file secret \
+  ansible/group_vars/monitoring_servers/vault.yml
+ansible-vault view \
+  --vault-password-file secret \
+  ansible/group_vars/monitoring_servers/vault.yml
+```
+
+実環境変数を使った設定検証とデプロイでは、同じ Vault パスワードファイルを指定します。
+検証スクリプトは SNMP 認証情報を画面へ出力しません。
+
+```bash
+nix develop --command ./scripts/validate-monitoring-config.sh \
+  --vault-password-file secret \
+  -e @ansible/group_vars/monitoring_servers/vault.yml
+
+ansible-playbook \
+  --vault-password-file secret \
+  -i ansible/inventory.yml \
+  ansible/playbooks/deploy-monitoring.yml
 ```
 
 ## デプロイ

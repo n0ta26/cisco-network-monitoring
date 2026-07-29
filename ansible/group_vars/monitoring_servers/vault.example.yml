@@ -1,0 +1,11 @@
+---
+# Copy this file to vault.yml, replace the placeholders, then encrypt vault.yml.
+vault_monitoring_stack_snmp_auths:
+  cisco_v3:
+    version: 3
+    username: REPLACE_WITH_SNMP_USERNAME
+    security_level: authPriv
+    password: REPLACE_WITH_SNMP_AUTH_PASSWORD
+    auth_protocol: SHA
+    priv_protocol: AES
+    priv_password: REPLACE_WITH_SNMP_PRIV_PASSWORD
