@@ -1,0 +1,3 @@
+# Keep these versions aligned with the assertions in flake.nix.
+ansible-core==2.20.5
+ansible-lint==25.8.2

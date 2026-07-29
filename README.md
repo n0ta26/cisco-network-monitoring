@@ -23,6 +23,29 @@ nix develop
 - `ansible-lint`
 - `snmpwalk`
 
+初回と依存更新後は、固定された Ansible Collection をインストールします。
+
+```bash
+ansible-galaxy collection install --force -r ansible/requirements.yml
+```
+
+### Ansible ツールチェーンのバージョン
+
+同じ commit を同じ依存関係で検証できるよう、主要ツールを完全固定しています。
+
+| 対象 | バージョン | 固定箇所 |
+| --- | --- | --- |
+| Ansible Core | 2.20.5 | `flake.nix` と `ansible/requirements.txt` |
+| ansible-lint | 25.8.2 | `flake.nix` と `ansible/requirements.txt` |
+| community.docker | 5.1.0 | `ansible/requirements.yml` |
+
+依存を更新するときは、Nix package set と Python package の互換性を確認してから
+`flake.nix` の version assertion、`ansible/requirements.txt`、
+`ansible/requirements.yml` を同じ変更で更新します。Nix package set を更新する場合は
+`nix flake update` で `flake.lock` も更新し、Collection を再インストールします。
+更新後は CI と同じ lint、全 playbook の syntax check、設定検証を実行し、成功を確認して
+からコミットしてください。
+
 ## 事前設定
 
 1. 監視サーバ接続先を設定する  
