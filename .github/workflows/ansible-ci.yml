@@ -22,15 +22,19 @@ jobs:
           python-version: "3.12"
 
       - name: Install Ansible and lint tooling
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install ansible-core ansible-lint
+        run: python -m pip install -r ansible/requirements.txt
 
       - name: Install Ansible collections
-        run: ansible-galaxy collection install -r ansible/requirements.yml
+        run: >-
+          ansible-galaxy collection install
+          --force
+          -r ansible/requirements.yml
 
-      - name: Show Ansible version
-        run: ansible --version
+      - name: Show pinned toolchain versions
+        run: |
+          ansible --version
+          ansible-lint --version
+          ansible-galaxy collection list community.docker
 
       - name: Run ansible-lint
         working-directory: ansible
