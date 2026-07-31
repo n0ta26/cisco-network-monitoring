@@ -11,6 +11,8 @@ jobs:
   syntax-check:
     name: Ansible syntax check
     runs-on: ubuntu-latest
+    env:
+      ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
 
     steps:
       - name: Checkout repository
@@ -37,8 +39,7 @@ jobs:
           ansible-galaxy collection list community.docker
 
       - name: Run ansible-lint
-        working-directory: ansible
-        run: ansible-lint playbooks/deploy-monitoring.yml
+        run: ansible-lint --profile production ansible
 
       - name: Run syntax check
         working-directory: ansible
