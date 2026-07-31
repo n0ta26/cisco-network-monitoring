@@ -46,6 +46,21 @@ lint 対象の除外設定はありません。
 ansible-lint --profile production ansible
 ```
 
+### 全playbookの構文チェック
+
+CI とローカルでは、`ansible/playbooks/` 配下の `.yml` と `.yaml` を再帰的に自動検出し、
+すべての playbook を個別に syntax check します。新しい playbook を追加した場合も、対象の
+列挙を更新する必要はありません。
+
+ローカルでは、固定された Collection をインストールしてから CI と同じスクリプトを実行します。
+
+```bash
+nix develop --command ansible-galaxy collection install \
+  --force \
+  -r ansible/requirements.yml
+nix develop --command ./scripts/syntax-check-playbooks.sh
+```
+
 依存を更新するときは、Nix package set と Python package の互換性を確認してから
 `flake.nix` の version assertion、`ansible/requirements.txt`、
 `ansible/requirements.yml` を同じ変更で更新します。Nix package set を更新する場合は
