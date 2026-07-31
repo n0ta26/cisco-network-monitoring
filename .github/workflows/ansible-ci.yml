@@ -42,8 +42,7 @@ jobs:
         run: ansible-lint --profile production ansible
 
       - name: Run syntax check
-        working-directory: ansible
-        run: ansible-playbook -i inventory.yml playbooks/deploy-monitoring.yml --syntax-check
+        run: ./scripts/syntax-check-playbooks.sh
 
       - name: Validate default monitoring configuration
         run: ./scripts/validate-monitoring-config.sh
