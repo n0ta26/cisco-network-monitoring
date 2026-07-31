@@ -39,6 +39,13 @@ ansible-galaxy collection install --force -r ansible/requirements.yml
 | ansible-lint | 25.8.2 | `flake.nix` と `ansible/requirements.txt` |
 | community.docker | 5.1.0 | `ansible/requirements.yml` |
 
+CI とローカルでは、production profile を明示して `ansible/` 配下全体を lint します。
+lint 対象の除外設定はありません。
+
+```bash
+ansible-lint --profile production ansible
+```
+
 依存を更新するときは、Nix package set と Python package の互換性を確認してから
 `flake.nix` の version assertion、`ansible/requirements.txt`、
 `ansible/requirements.yml` を同じ変更で更新します。Nix package set を更新する場合は
