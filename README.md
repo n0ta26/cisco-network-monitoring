@@ -239,6 +239,46 @@ ansible-playbook \
   --vault-password-file secret
 ```
 
+### 監視イメージの更新とロールバック
+
+運用と設定検証で使用する Docker イメージは再現性のため version tag に固定しています。
+Prometheus と Alertmanager は `files/compose.yaml` と
+`scripts/validate-monitoring-config.sh` で同じ version を使用します。
+
+| コンポーネント | 固定バージョン |
+| --- | --- |
+| SNMP Exporter | `v0.30.1` |
+| Node Exporter | `v1.12.1` |
+| Prometheus | `v3.13.1` |
+| Alertmanager | `v0.33.1` |
+| Grafana | `13.1.1` |
+
+更新時は各プロジェクトの公式 release notes で破壊的変更を確認し、対象 tag を
+`files/compose.yaml` と検証スクリプトへ反映します。次の検証がすべて成功してから
+デプロイしてください。
+
+```bash
+docker compose -f files/compose.yaml pull
+nix develop --command ./scripts/validate-monitoring-config.sh
+ansible-playbook \
+  -i ansible/inventory.yml \
+  ansible/playbooks/deploy-monitoring.yml \
+  --vault-password-file secret
+```
+
+問題が発生した場合は、イメージを更新した commit を revert するか、
+`files/compose.yaml` と `scripts/validate-monitoring-config.sh` の tag を直前の正常な
+バージョンへ戻します。その後、固定版を明示的に取得して再デプロイします。
+永続 volume は削除しません。
+
+```bash
+docker compose -f files/compose.yaml pull
+ansible-playbook \
+  -i ansible/inventory.yml \
+  ansible/playbooks/deploy-monitoring.yml \
+  --vault-password-file secret
+```
+
 デプロイ後、監視サーバの以下ポートで各コンポーネントにアクセスできます。
 
 - Grafana: `http://<monitoring-host>:3000`
@@ -355,7 +395,7 @@ docker run --rm \
   --entrypoint /bin/promtool \
   -v "$PWD/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
   -v "$PWD/prometheus/rules:/etc/prometheus/rules:ro" \
-  prom/prometheus:latest \
+  prom/prometheus:v3.13.1 \
   check config /etc/prometheus/prometheus.yml
 ```
 
